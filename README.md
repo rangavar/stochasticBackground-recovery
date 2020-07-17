@@ -1,4 +1,4 @@
-# stochastic-GW-background
+# stochastic GW background: Recoverying the Population
 
 This script uses the EMCEE package to recover the underlying distribution of supermassive black hole binaries (SMBHB) from the observed stochastic gravitational-wave background. This script is optimized to use the SMBHB population realizations in Klein et al. 2019, which are based on the semi-analytic galaxy formation model introduced by Barausse et al. 2012. The SMBHB populations predicted by these models are available at: 
 
