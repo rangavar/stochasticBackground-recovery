@@ -10,3 +10,6 @@ This script follows two steps:
 2) Uses the stochastic GW background to recover the distribution of SMBHBs over the total-mass space. 
 
 What it returns in paramter.pdf files at the output folder, are constraints on the total mass of the binary at each mass bin, compared against the true value from the simulations.
+
+a more detailed description of the methods is available at my thesis: 
+
