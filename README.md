@@ -15,3 +15,4 @@ What it returns in paramter.pdf files at the output folder, are constraints on t
 
 a more detailed description of the methods is available at my thesis: 
 
+https://github.com/rangavar/stochasticBackground-hierarchy/raw/master/Stochastic_Gravitational_Wave_Background_from_the_Mergers_of_Supermassive_Black_Hole_Binaries.pdf
