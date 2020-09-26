@@ -1,32 +1,30 @@
+#the output dictionary named 'usable_mock' gives the redshift, m1, and m2 for a drawn population of mergers in one year
+#usable_mock is aranged as usable_mock[key] = [z][m1][m2] where keys are mergers IDs, which are integers going from 0 to total_number_of_mergers_in_one_year
 import matplotlib
 matplotlib.use('Agg')
-import numpy as np
-import os
-import h5py
-import operator
-import pickle
-import random
-import matplotlib.pyplot as plt
-from astropy.cosmology import Planck15 as cosmo
 import numpy
-import PhenomA as pa
-import LISA as li
-import WaveformTools as wt
-import os
-import pickle as pickle
+import numpy as np
+from astropy.cosmology import Planck15 as cosmo
+import matplotlib.pyplot as plot
+
+deltaZ = 5 #size of the z bins
+NM1 = 5 #number of M1 mass bins
+NM2 = 5 #number of M2 mass bins
+NMT = 10 #number of total-mass bins 
 
 font = {'family' : 'normal',
         'weight' : 'bold',
-        'size'   : 15}
-
-matplotlib.rc('font', **font)
+        'size'   : 14}
 
 #reading the mass and redshifts from simulations and meanwhile calucalting the snr in filtering for snr>7.0
-f = open('../0template/Klein16_PopIII.dat','r')
+f = open('data/Klein16_PopIII.dat','r')
 lines = f.readlines()
 f.close()
 
-#as always start with binning the mass and redshift spaces
+#calculate the eventRates per redshfit bin per year
+def eventRate(N,z1,z2):
+    return (1./(z2-z1))*4.*numpy.pi*N*(3.064e-7)*cosmo.comoving_distance((z1+z2)/2.).value**2.
+
 Z = []
 M1 = []
 M2 = []
@@ -39,26 +37,22 @@ for line in lines:
     m2 = float(line.split(' ')[3])
     M2.append(m2)
 
-    #binary = wt.Binary(m1, m2, z=z)
-    #binary.T_merge = T_merge
-    #binary.SetFreqBounds(lisa)
-
-    #freqs, X_char = binary.CalcStrain(lisa)
-    #snr = binary.CalcSNR(freqs, X_char, lisa)   
-    
     if '%s-%s-%s'%(m1,m2,z) in detections.keys():
         detections['%s-%s-%s'%(m1,m2,z)] = detections['%s-%s-%s'%(m1,m2,z)] + float(line.split(' ')[-1].split('\n')[0])
     else:
         detections['%s-%s-%s'%(m1,m2,z)] = float(line.split(' ')[-1].split('\n')[0])
 
-#zBins = Z (too much)
-#zBins.append(20.00)
-#zBins = numpy.sort(zBins)
-#zBins = numpy.unique(zBins)
-zBinsSize = 2.
+#binning z
+zBinsSize = deltaZ
 zBins = numpy.arange(0.0,20.+zBinsSize,zBinsSize)
 
-#unique m1,m2
+#solving the python precison problem
+new_zBins = numpy.zeros(len(zBins))
+for i in range(len(zBins)):
+    new_zBins[i] = '%2.2f'%zBins[i]
+zBins = new_zBins
+
+#didnt sort masses cause already sorted
 M1 = numpy.unique(M1)
 M2 = numpy.unique(M2)
 
@@ -72,306 +66,146 @@ Mtotallog = np.log10(Mtotal)
 M1log = numpy.log10(M1)
 M2log = numpy.log10(M2)
 
-M1BinSize = (M1log[-1]-M1log[0])/20.
+M1BinSize = (M1log[-1]-M1log[0])/NM1
 M1logBins = []
-for i in range(21):
+for i in range(NM1+1):
     M1logBins.append(M1log[0]+M1BinSize*i)
 
-M2BinSize = (M2log[-1]-M2log[0])/20.
+M2BinSize = (M2log[-1]-M2log[0])/NM2
 M2logBins = []
-for i in range(21):
+for i in range(NM2+1):
     M2logBins.append(M2log[0]+M2BinSize*i)
 
-MTBinSize = (Mtotallog[-1]-Mtotallog[0])/8.
+MTBinSize = (Mtotallog[-1]-Mtotallog[0])/NMT
 MTlogBins = []
 MTlogs = []
-for i in range(11):
+for i in range(NMT+1):
     MTlogBins.append(Mtotallog[0]+MTBinSize*i)
 
-###binning finished, now start actually reading the data
-#!!!!! if it is enough to use the previously saved dictionary go to line 348
-f = open('../0template/Klein16_PopIII.dat','r')
+#binning finished, now reading the data into bins
+###popIII
+f = open('data/Klein16_PopIII.dat','r')
 lines = f.readlines()
 f.close()
 
-simType = 1
 detections = {}
 for line in lines:
     z = float(line.split(' ')[1])
-    m1 = float(line.split(' ')[2])
-    m2 = float(line.split(' ')[3])
-    T_merge = 1.*li.YEAR
-
-    binary = wt.Binary(m1 * pa.TSUN, m2 * pa.TSUN, z=z)
-    binary.T_merge = T_merge
-    binary.SetFreqBounds(lisa)
-
-    freqs, X_char = binary.CalcStrain(lisa)
-    snr = binary.CalcSNR(freqs, X_char, lisa)   
-    
-    #bn1 = int((numpy.log10(m1)-M1logBins[0])/M1BinSize)
-    #bn2 = int((numpy.log10(m2)-M2logBins[0])/M2BinSize)
     bnZ = int((z-zBins[0])/zBinsSize)
-
-    mt = m1 + m2
-    bnt = int((np.log10(mt)-MTlogBins[0])/MTBinSize)
-
-    if snr > 7.0:
-        if '%s-%s-%s'%(simType,bnt,bnZ) in detections.keys():
-            detections['%s-%s-%s'%(simType,bnt,bnZ)] = detections['%s-%s-%s'%(simType,bnt,bnZ)] + float(line.split(' ')[-1].split('\n')[0])
-        else:
-            detections['%s-%s-%s'%(simType,bnt,bnZ)] = float(line.split(' ')[-1].split('\n')[0])
+    if '%s'%(bnZ) in detections.keys():
+        detections['%s'%(bnZ)] = detections['%s'%(bnZ)] + float(line.split(' ')[-1].split('\n')[0])
     else:
-        detections['%s-%s-%s'%(simType,bnt,bnZ)] = 0.0
+        detections['%s'%(bnZ)] = float(line.split(' ')[-1].split('\n')[0])
 
-###
-f = open('../0template/Klein16_Q3delays.dat','r')
-lines = f.readlines()
-f.close()
-
-simType = 2
-for line in lines:
-    z = float(line.split(' ')[1])
-    m1 = float(line.split(' ')[2])
-    m2 = float(line.split(' ')[3])
-    T_merge = 1.*li.YEAR
-
-    binary = wt.Binary(m1 * pa.TSUN, m2 * pa.TSUN, z=z)
-    binary.T_merge = T_merge
-    binary.SetFreqBounds(lisa)
-
-    freqs, X_char = binary.CalcStrain(lisa)
-    snr = binary.CalcSNR(freqs, X_char, lisa)   
-    
-    #bn1 = int((numpy.log10(m1)-M1logBins[0])/M1BinSize)
-    #bn2 = int((numpy.log10(m2)-M2logBins[0])/M2BinSize)
-    bnZ = int((z-zBins[0])/zBinsSize)
-
-    mt = m1 + m2
-    bnt = int((np.log10(mt)-MTlogBins[0])/MTBinSize)
-
-    if snr > 7.0:
-        if '%s-%s-%s'%(simType,bnt,bnZ) in detections.keys():
-            detections['%s-%s-%s'%(simType,bnt,bnZ)] = detections['%s-%s-%s'%(simType,bnt,bnZ)] + float(line.split(' ')[-1].split('\n')[0])
-        else:
-            detections['%s-%s-%s'%(simType,bnt,bnZ)] = float(line.split(' ')[-1].split('\n')[0])
-    else:
-        detections['%s-%s-%s'%(simType,bnt,bnZ)] = 0.0
-
-###
-f = open('../0template/Klein16_Q3nodelays.dat','r')
-lines = f.readlines()
-f.close()
-
-simType = 3
-for line in lines:
-    z = float(line.split(' ')[1])
-    m1 = float(line.split(' ')[2])
-    m2 = float(line.split(' ')[3])
-    T_merge = 1.*li.YEAR
-
-    binary = wt.Binary(m1 * pa.TSUN, m2 * pa.TSUN, z=z)
-    binary.T_merge = T_merge
-    binary.SetFreqBounds(lisa)
-
-    freqs, X_char = binary.CalcStrain(lisa)
-    snr = binary.CalcSNR(freqs, X_char, lisa)   
-    
-    #bn1 = int((numpy.log10(m1)-M1logBins[0])/M1BinSize)
-    #bn2 = int((numpy.log10(m2)-M2logBins[0])/M2BinSize)
-    bnZ = int((z-zBins[0])/zBinsSize)
-
-    mt = m1 + m2
-    bnt = int((np.log10(mt)-MTlogBins[0])/MTBinSize)
-
-    if snr > 7.0:
-        if '%s-%s-%s'%(simType,bnt,bnZ) in detections.keys():
-            detections['%s-%s-%s'%(simType,bnt,bnZ)] = detections['%s-%s-%s'%(simType,bnt,bnZ)] + float(line.split(' ')[-1].split('\n')[0])
-        else:
-            detections['%s-%s-%s'%(simType,bnt,bnZ)] = float(line.split(' ')[-1].split('\n')[0])
-    else:
-        detections['%s-%s-%s'%(simType,bnt,bnZ)] = 0.0
-
-#just to save some time in the future lets save the dictionary!
-pickle_out = open("outputs/rick.pickle","wb")
-pickle.dump(detections, pickle_out)
-pickle_out.close()
-
-#load the dictionary
-pickle_in = open("outputs/rick.pickle","rb")
-detections = pickle.load(pickle_in)
-
-#setting the bins with no merger equal to zero
-for simType in range(1,4):
-    for m in range(len(MTlogBins)-1):
-        for z in range(len(zBins)-1):
-            if '%s-%s-%s'%(simType,m,z) not in detections.keys():
-                detections['%s-%s-%s'%(simType,m,z)] = 0.
-
-###finished reading the simulations, calculate the eventRates per redshfit bin per year
-def eventRate(N,z1,z2):
-    return (1./(z2-z1))*4.*numpy.pi*N*(3.064e-7)*cosmo.comoving_distance((z1+z2)/2.).value**2.
-
-#calculating the observable event rate for each bin - this is per redshift per mass bin per unit time
+#event rate
 eventRates = {}
-for simType in range(1,4):
-    keyNumber = 0
-    for m in range(len(MTlogBins)-1):
+for j in detections.keys():
+    i = int(j) #control
+    eventRates[zBins[i]] = eventRate(detections['%s'%i],zBins[i],zBins[i+1])*deltaZ
+
+#adding the zero bins as well! 
+for j in range(len(zBins)):
+    if zBins[j] not in eventRates.keys():
+        eventRates[zBins[j]] = 0.
+
+#summing the event rates over the bins to get the total number of events
+totalNEvenets = 0
+for key in eventRates.keys():
+    totalNEvenets = totalNEvenets + eventRates[key]
+
+#now we want the distribution of M1 and M2 (or M_total) in each redshift bin
+massDistribution = {} #keys = 'zbin-m1bin-m2bin
+for line in lines:
+    z = float(line.split(' ')[1])
+    m1 = float(line.split(' ')[2])
+    m2 = float(line.split(' ')[3])
+
+    bnZ = int((z-zBins[0])/zBinsSize)
+    bn1 = int((numpy.log10(m1)-M1logBins[0])/M1BinSize)
+    bn2 = int((numpy.log10(m2)-M2logBins[0])/M2BinSize)
+
+    mt = m1 + m2
+    bnt = int((np.log10(mt)-MTlogBins[0])/MTBinSize)
+
+    if '%s-%s-%s'%(bnZ,bn1,bn2) in massDistribution.keys():
+        massDistribution['%s-%s-%s'%(bnZ,bn1,bn2)] = massDistribution['%s-%s-%s'%(bnZ,bn1,bn2)] + float(line.split(' ')[-1].split('\n')[0])
+    else:
+        massDistribution['%s-%s-%s'%(bnZ,bn1,bn2)] = float(line.split(' ')[-1].split('\n')[0])
+
+#calculating the event rate for each of the new redshift_mass_mass bins
+massDistribution_EventRate = {}
+for key in massDistribution.keys():
+    i = int(key.split('-')[0])
+    massDistribution_EventRate[key] = eventRate(massDistribution[key],zBins[i],zBins[i+1])*deltaZ
+
+#adding the missing bins (bins with zero event rate)
+#making the mass distribution one dimensional for future use (now it is two dimensional: M1-M2)
+oneD_massDistribution_EventRate = {}
+for c1 in range(NM1):
+    for c2 in range(NM2):
         for z in range(len(zBins)-1):
-            if '%s-%s-%s'%(simType,m,z) in detections.keys():
-                eventRates['%s-%s'%(simType,keyNumber)] = eventRate(detections['%s-%s-%s'%(simType,m,z)],zBins[z],zBins[z+1])
-            else: 
-                eventRates['%s-%s'%(simType,keyNumber)] = 0.
-            keyNumber = keyNumber + 1
+            if '%s-%s-%s' %(z,c1,c2) not in massDistribution_EventRate.keys():
+                massDistribution_EventRate['%s-%s-%s' %(z,c1,c2)] = 0
+            cT = NM2*c1 + c2 #recal this for conversion in the future
+            oneD_massDistribution_EventRate['%s-%s' %(z,cT)] = massDistribution_EventRate['%s-%s-%s' %(z,c1,c2)]
 
-#calculating the total observable events per year by summing over mass and redshift bins
-totalEventRate = {}
-for simType in range(1,4):
-    keyNumber = 0
-    for m in range(len(MTlogBins)-1):
-        for z in range(len(zBins)-1):
-            if '%s'%simType not in totalEventRate.keys():
-                totalEventRate['%s'%simType] = eventRates['%s-%s'%(simType,keyNumber)]*zBinsSize
-            else:
-                totalEventRate['%s'%simType] = totalEventRate['%s'%simType] + eventRates['%s-%s'%(simType,keyNumber)]*zBinsSize
-            keyNumber = keyNumber + 1
+#Cumulative oneD_massDistribution_EventRate to draw random realizations from in the future
+cum_oneD_massDistribution_eventRate = {}
+for z in range(len(zBins)-1):
+    cum_oneD_massDistribution_eventRate['%s-%s'%(z,0)] = 0
+    for cT in range(NM1*NM2):
+        cum_oneD_massDistribution_eventRate['%s-%s'%(z,cT+1)] = cum_oneD_massDistribution_eventRate['%s-%s'%(z,cT)] + oneD_massDistribution_EventRate['%s-%s'%(z,cT)]
 
-#setting up this commulative event to know be able to calculate the number of events comming from each mass/redshit bin
-commulativeKeys = {}
-for simType in range(1,4):
-    for i in range(1+int(len(eventRates.keys())/3)):
-        if i == 0: 
-            commulativeKeys['%s-%s'%(simType,i)] = 0.
-        else:
-            commulativeKeys['%s-%s'%(simType,i)] = commulativeKeys['%s-%s'%(simType,i-1)] + eventRates['%s-%s'%(simType,i-1)]*zBinsSize
+#Cumulative redshift distribution of the events
+cum_zDistribution_eventRate = {}
+cum_zDistribution_eventRate[0] = 0
+for z in range(len(zBins)-1):
+    cum_zDistribution_eventRate[z+1] = eventRates[zBins[z]] + cum_zDistribution_eventRate[z]
 
-#simulating the observations - sum of three random draws from our populations
-simType = 2
-observations = numpy.zeros(int(len(eventRates.keys())/3))
-#for o in range(int(3.*totalEventRate['%s'%simType])):
-for o in range(1000000):
-    seed = numpy.random.rand(1)[0]*totalEventRate['%s'%simType]
-    for i in range(int(len(eventRates.keys())/3)-1):
-        if commulativeKeys['%s-%s'%(simType,i)]<seed<commulativeKeys['%s-%s'%(simType,i+1)]:
-            observations[i] = observations[i] + 1
+#drawing a realization from data
+mock = {}
+for merger in range(int(totalNEvenets)+1):
+    #drawing a random redshift
+    z_drawn = numpy.random.random()*totalNEvenets
+    
+    z_bin = 10000000 #defining redshift bin
+    #finding the bin number for drawn redshift
+    for cz in range(len(cum_zDistribution_eventRate)-1):
+        if cum_zDistribution_eventRate[cz] < z_drawn < cum_zDistribution_eventRate[cz+1]:
+            z_bin = cz
+    
+    #number of events in this redshift bin
+    z_events = eventRates[zBins[z_bin]]
+    
+    #drawing M1 and M2 by drawing from the one_dimensional bin number/ and its one-D bin
+    oneDM_drawn = numpy.random.random()*z_events
+    oneDM_bin = 10000000
+    for cm in range(NM1*NM2):
+        if cum_oneD_massDistribution_eventRate['%s-%s'%(z_bin,cm)] < oneDM_drawn < cum_oneD_massDistribution_eventRate['%s-%s'%(z_bin,cm+1)]:
+            oneDM_bin = cm
 
-#define the distribution chi squared
-def chiDist(observationF,expectedF):
-    y = (observationF - expectedF)**2./expectedF
-    return y
+    #conversion to M1 and M2 bins
+    M2_bin = numpy.mod(oneDM_bin,NM2)
+    M1_bin = int(oneDM_bin/NM1)
 
-simType = 2
-simTypeExpObs = numpy.zeros(int(len(eventRates.keys())/3))
-for i in range(int(len(eventRates.keys())/3)):
-    simTypeExpObs[i] = eventRates['%s-%s'%(simType,i)]*zBinsSize/totalEventRate['%s'%simType]
+    mock[merger] = numpy.zeros(3) #z,M1,M2 - all bin numbers
+    mock[merger][0] = int(z_bin)
+    mock[merger][1] = int(M1_bin)
+    mock[merger][2] = int(M2_bin)
 
-simTypeComm = numpy.zeros(1+int(len(eventRates.keys())/3))
-for i in range(1+int(len(eventRates.keys())/3)):
-    simTypeComm[i] = commulativeKeys['%s-%s'%(simType,i)]
+#now converting the results to a more usable format
+#note that this is only for one year, and to get the second year you can re-run the code and add the results to the pre-saved dictionary of the first year
+usable_mock = {}
+for key in mock.keys():
+    redshift_bin = int(mock[key][0])
+    redshift = 0.5*(zBins[redshift_bin]+zBins[redshift_bin+1])
 
-for i in range(int(len(eventRates.keys())/3)):
-    print('%s ----- %s'%(simTypeExpObs[i],observations[i]))
+    mass1_bin = int(mock[key][1])
+    mass1 = 10.**( 0.5*(M1logBins[mass1_bin]+M1logBins[mass1_bin+1]) )
+    
+    mass2_bin = int(mock[key][2])
+    mass2 = 10.**( 0.5*(M2logBins[mass2_bin]+M2logBins[mass2_bin+1]) )
 
-#calculating the probability distribution from the distribution of individually resolved mergers
-#note that normalization is being performed
-distProb = {}
-sumProbes = 0.0
-for simType in range(1,4):
-    sumChi = 0.
-    for i in range(int(len(eventRates.keys())/3)):
-        e = eventRates['%s-%s'%(simType,i)]*zBinsSize/totalEventRate['%s'%simType]
-        if e == 0.:
-            e = 0.00000000000000001 
-        #o = observations[i]/float(int(3.*totalEventRate['%s'%simType]))
-        o = observations[i]/1000000.
-        chi = chiDist(o,e)
-        #print(chi)
-        sumChi = sumChi + chi
-    probability = prob(sumChi)
-    distProb['%s'%simType] = probability
-    sumProbes = sumProbes + probability
-
-#normalizing the probaility
-nDistProbes = {}
-plotProbes = []
-for tn in range(1,4):
-    nDistProbes['%s'%tn] = distProb['%s'%tn]/sumProbes
-    plotProbes.append(nDistProbes['%s'%tn])
-
-#saving the normalized probability
-lines = []
-lines.append('probability distribution from the distribution only')
-count = 1
-for tn in templateNumber:
-    lines.append('%s-%s'%(tn,nDistProbes['%s'%count]))
-    count = count + 1 
-
-f = open('outputs/LDistribution.txt','w')
-f.writelines(lines)
-f.close()
-
-#plotting the probabilities
-templateNumber = ['popIII','Q3delay','Q3noDelay']
-plt.bar(templateNumber,plotProbes)
-plt.xlabel('simulation')
-plt.ylabel('probability')
-plt.savefig('plots/LDistribution.eps',format='eps',dpi=1000)
-plt.close()
-
-#multiply the strain and distribution
-finalProb = {}
-summ = 0.
-for simType in range(1,4):
-    finalProb['%s'%simType] = nDistProbes['%s'%simType]*nProbes['%s'%simType]
-    summ = summ + finalProb['%s'%simType]
-
-#normalizing
-nFinalProbes = {}
-final = []
-init = []
-for tn in range(1,4):
-    nFinalProbes['%s'%tn] = finalProb['%s'%tn]/summ
-    final.append(nFinalProbes['%s'%tn])
-    init.append(nProbes['%s'%tn])
-
-#plotting
-N = 3
-ind = np.arange(N)  
-width = 0.37       
-fig = plt.figure()
-ax = fig.add_subplot(111)
-
-yvals = init
-rects1 = ax.bar(ind, yvals, width, color='r', label='likelihood (strain)')
-zvals = final
-rects2 = ax.bar(ind+width, zvals, width, color='b', label ='posterior')
-
-ax.set_ylabel('probability')
-ax.set_xticks(ind+width/2)
-ax.set_xticklabels( ('popIII', 'Q3delay', 'Q3noDelay') )
-ax.legend()
-
-def autolabel(rects):
-    for rect in rects:
-        h = rect.get_height()
-        ax.text(rect.get_x()+rect.get_width()/2., 1.05*h, '%d'%int(h),
-                ha='center', va='bottom')
-
-plt.savefig('plots/LFinal.eps',format='eps',dpi=1000)
-plt.close()
-
-#####
-#stop
-###are we going to use the number of detections?(yes/!no(for now)!) 
-
-#the final prior on number of detections, chi squared
-def chiNumber(nObserved,nExpect):
-    y = ((nObserved-nExpect)**2.)/(2.)
-    return y
-
-#calculating the the probability distribution coming from the number of detections 
-numberPrior = []
-for simType in range(1,4):
-    chi = chiNumber(int(totalEventRate['%s'%1]),totalEventRate['%s'%simType])
-    probability = prob(chi)
-    numberPrior.append(probability)
+    usable_mock[key] = numpy.zeros(3)
+    usable_mock[key][1] = mass1
+    usable_mock[key][2] = mass2
