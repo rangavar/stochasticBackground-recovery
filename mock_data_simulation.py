@@ -207,5 +207,6 @@ for key in mock.keys():
     mass2 = 10.**( 0.5*(M2logBins[mass2_bin]+M2logBins[mass2_bin+1]) )
 
     usable_mock[key] = numpy.zeros(3)
+    usable_mock[key][0] = redshift
     usable_mock[key][1] = mass1
     usable_mock[key][2] = mass2
