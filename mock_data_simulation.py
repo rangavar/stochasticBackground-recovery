@@ -2,28 +2,33 @@
 #usable_mock is aranged as usable_mock[key] = [z][m1][m2] where keys are mergers IDs, which are integers going from 0 to total_number_of_mergers_in_one_year
 import matplotlib
 matplotlib.use('Agg')
-import numpy
+import pickle
 import numpy as np
 from astropy.cosmology import Planck15 as cosmo
 import matplotlib.pyplot as plot
 
-deltaZ = 5 #size of the z bins
-NM1 = 5 #number of M1 mass bins
-NM2 = 5 #number of M2 mass bins
-NMT = 10 #number of total-mass bins 
+#adding the extrapolation ratio: defined based on table 1 in https://arxiv.org/pdf/1511.05581.pdf
+extrapolation_rate = 1.89 #1.89 for popIII, 1.72 for Q3_d, 1.98 for Q3_nod
+
+period = 3 #in years
+deltaZ = 0.1 #size of the z bins
+NM1 = 100 #number of M1 mass bins
+NM2 = 100 #number of M2 mass bins
+NMT = 100 #number of total-mass bins 
 
 font = {'family' : 'normal',
         'weight' : 'bold',
         'size'   : 14}
 
 #reading the mass and redshifts from simulations and meanwhile calucalting the snr in filtering for snr>7.0
-f = open('data/Klein16_PopIII.dat','r')
+#f = open('/Users/nikos/work/DATA/Klein_et_al_2016/Klein16_PopIII.dat','r') #give the directory of popII or any other catalogue here
+f = open('data/Klein16_PopIII.dat','r') #give the directory of popII or any other catalogue here
 lines = f.readlines()
 f.close()
 
-#calculate the eventRates per redshfit bin per year
+#calculate the eventRates per redshfit bin per year, multiplied by the extrapolation_rate
 def eventRate(N,z1,z2):
-    return (1./(z2-z1))*4.*numpy.pi*N*(3.064e-7)*cosmo.comoving_distance((z1+z2)/2.).value**2.
+    return period * extrapolation_rate * (1./(z2-z1))*4.*np.pi*N*(3.064e-7)*cosmo.comoving_distance((z1+z2)/2.).value**2.
 
 Z = []
 M1 = []
@@ -44,17 +49,17 @@ for line in lines:
 
 #binning z
 zBinsSize = deltaZ
-zBins = numpy.arange(0.0,20.+zBinsSize,zBinsSize)
+zBins = np.arange(0.0,20.+zBinsSize,zBinsSize)
 
 #solving the python precison problem
-new_zBins = numpy.zeros(len(zBins))
+new_zBins = np.zeros(len(zBins))
 for i in range(len(zBins)):
     new_zBins[i] = '%2.2f'%zBins[i]
 zBins = new_zBins
 
 #didnt sort masses cause already sorted
-M1 = numpy.unique(M1)
-M2 = numpy.unique(M2)
+M1 = np.unique(M1)
+M2 = np.unique(M2)
 
 #binning the M1 and M2
 M1[-1] = M1[-1]+1.
@@ -63,8 +68,8 @@ M2[-1] = M2[-1]+1.
 Mtotal = [M1[0]+M2[0],M1[-1]+M2[-1]]
 Mtotallog = np.log10(Mtotal)
 
-M1log = numpy.log10(M1)
-M2log = numpy.log10(M2)
+M1log = np.log10(M1)
+M2log = np.log10(M2)
 
 M1BinSize = (M1log[-1]-M1log[0])/NM1
 M1logBins = []
@@ -84,7 +89,8 @@ for i in range(NMT+1):
 
 #binning finished, now reading the data into bins
 ###popIII
-f = open('data/Klein16_PopIII.dat','r')
+#f = open('/Users/nikos/work/DATA/Klein_et_al_2016/Klein16_PopIII.dat','r') #give the directory of popII or any other catalogue here
+f = open('data/Klein16_PopIII.dat','r') #give the directory of popII or any other catalogue here
 lines = f.readlines()
 f.close()
 
@@ -121,8 +127,8 @@ for line in lines:
     m2 = float(line.split(' ')[3])
 
     bnZ = int((z-zBins[0])/zBinsSize)
-    bn1 = int((numpy.log10(m1)-M1logBins[0])/M1BinSize)
-    bn2 = int((numpy.log10(m2)-M2logBins[0])/M2BinSize)
+    bn1 = int((np.log10(m1)-M1logBins[0])/M1BinSize)
+    bn2 = int((np.log10(m2)-M2logBins[0])/M2BinSize)
 
     mt = m1 + m2
     bnt = int((np.log10(mt)-MTlogBins[0])/MTBinSize)
@@ -166,7 +172,7 @@ for z in range(len(zBins)-1):
 mock = {}
 for merger in range(int(totalNEvenets)+1):
     #drawing a random redshift
-    z_drawn = numpy.random.random()*totalNEvenets
+    z_drawn = np.random.random()*totalNEvenets
     
     z_bin = 10000000 #defining redshift bin
     #finding the bin number for drawn redshift
@@ -178,17 +184,17 @@ for merger in range(int(totalNEvenets)+1):
     z_events = eventRates[zBins[z_bin]]
     
     #drawing M1 and M2 by drawing from the one_dimensional bin number/ and its one-D bin
-    oneDM_drawn = numpy.random.random()*z_events
+    oneDM_drawn = np.random.random()*z_events
     oneDM_bin = 10000000
     for cm in range(NM1*NM2):
         if cum_oneD_massDistribution_eventRate['%s-%s'%(z_bin,cm)] < oneDM_drawn < cum_oneD_massDistribution_eventRate['%s-%s'%(z_bin,cm+1)]:
             oneDM_bin = cm
 
     #conversion to M1 and M2 bins
-    M2_bin = numpy.mod(oneDM_bin,NM2)
+    M2_bin = np.mod(oneDM_bin,NM2)
     M1_bin = int(oneDM_bin/NM1)
 
-    mock[merger] = numpy.zeros(3) #z,M1,M2 - all bin numbers
+    mock[merger] = np.zeros(3) #z,M1,M2 - all bin numbers
     mock[merger][0] = int(z_bin)
     mock[merger][1] = int(M1_bin)
     mock[merger][2] = int(M2_bin)
@@ -206,7 +212,11 @@ for key in mock.keys():
     mass2_bin = int(mock[key][2])
     mass2 = 10.**( 0.5*(M2logBins[mass2_bin]+M2logBins[mass2_bin+1]) )
 
-    usable_mock[key] = numpy.zeros(3)
-    usable_mock[key][0] = redshift
+    usable_mock[key] = np.zeros(3)
+    usable_mock[key][0] = redshift #you are right, this was missing!
     usable_mock[key][1] = mass1
     usable_mock[key][2] = mass2
+
+f = open("popIII_1yr.pkl","wb")
+pickle.dump(usable_mock,f)
+f.close()
