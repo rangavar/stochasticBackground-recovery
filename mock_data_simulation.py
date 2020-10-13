@@ -12,9 +12,9 @@ extrapolation_rate = 1.89 #1.89 for popIII, 1.72 for Q3_d, 1.98 for Q3_nod
 
 period = 3 #in years
 deltaZ = 0.1 #size of the z bins
-NM1 = 100 #number of M1 mass bins
-NM2 = 100 #number of M2 mass bins
-NMT = 100 #number of total-mass bins 
+NM1 = 200 #number of M1 mass bins
+NM2 = 200 #number of M2 mass bins
+NMT = 500 #number of total-mass bins 
 
 font = {'family' : 'normal',
         'weight' : 'bold',
@@ -212,11 +212,51 @@ for key in mock.keys():
     mass2_bin = int(mock[key][2])
     mass2 = 10.**( 0.5*(M2logBins[mass2_bin]+M2logBins[mass2_bin+1]) )
 
-    usable_mock[key] = np.zeros(3)
+    usable_mock[key] = np.zeros(5)
     usable_mock[key][0] = redshift #you are right, this was missing!
     usable_mock[key][1] = mass1
     usable_mock[key][2] = mass2
 
-f = open("popIII_1yr.pkl","wb")
+#reading the spins for the useable_sample
+f = open('data/Klein16_PopIII.dat','r') #give the directory of popII or any other catalogue here
+lines = f.readlines()
+f.close()
+
+for key in usable_mock.keys():
+    print(float(key)/len(usable_mock.keys()))
+
+    z_diff = 1e+27
+    m1_diff = 1e+28
+    m2_diff = 1e+29
+    s1_key = 0
+    s2_key = 0
+    z_key = 0
+    m1_key = 0
+    m2_key = 0
+    line_key = 0
+    for line in lines:
+        z = float(line.split(' ')[1])
+        m1 = float(line.split(' ')[2])
+        m2 = float(line.split(' ')[3])
+        s1 = float(line.split(' ')[5])
+        s2 = float(line.split(' ')[7])
+
+        if abs(z-usable_mock[key][0])<z_diff:
+            if abs(m1-usable_mock[key][1])<m1_diff:
+                if abs(m2-usable_mock[key][2])<m2_diff:
+                    s1_key = s1
+                    s2_key = s2
+                    m1_key = m1
+                    m2_key = m2
+                    z_key = z
+                    line_key = line
+                    z_diff = abs(z-usable_mock[key][0])
+                    m1_diff = abs(m1-usable_mock[key][1])
+                    m2_diff = abs(m2-usable_mock[key][2])
+
+    usable_mock[key][3] = s1_key
+    usable_mock[key][4] = s2_key
+
+f = open("popIII_3yr_1.pkl","wb")
 pickle.dump(usable_mock,f)
 f.close()
