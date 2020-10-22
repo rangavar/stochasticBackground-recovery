@@ -8,7 +8,7 @@ from astropy.cosmology import Planck15 as cosmo
 import matplotlib.pyplot as plot
 
 #adding the extrapolation ratio: defined based on table 1 in https://arxiv.org/pdf/1511.05581.pdf
-extrapolation_rate = 1.89 #1.89 for popIII, 1.72 for Q3_d, 1.98 for Q3_nod
+extrapolation_rate = 1.0 #1.89 for popIII, 1.72 for Q3_d, 1.98 for Q3_nod
 
 period = 3 #in years
 deltaZ = 0.1 #size of the z bins
@@ -217,6 +217,10 @@ for key in mock.keys():
     usable_mock[key][1] = mass1
     usable_mock[key][2] = mass2
 
+f = open("popIII_3yr_ne.pkl","wb")
+pickle.dump(usable_mock,f)
+f.close()
+
 #reading the spins for the useable_sample
 f = open('data/Klein16_PopIII.dat','r') #give the directory of popII or any other catalogue here
 lines = f.readlines()
@@ -257,6 +261,33 @@ for key in usable_mock.keys():
     usable_mock[key][3] = s1_key
     usable_mock[key][4] = s2_key
 
-f = open("popIII_3yr_1.pkl","wb")
+f = open("popIII_3yr_ne.pkl","wb")
 pickle.dump(usable_mock,f)
+f.close()
+
+#############################
+#to convert to Nikos's format
+import os
+import pickle
+os.mkdir('new_format')
+
+file_name = 'q3nd_3yr_ne.pkl'
+with open('%s' %file_name, 'rb') as f:
+    usable = pickle.load(f)
+
+new_cat = {}
+new_cat['z'] = np.zeros(len(usable))
+new_cat['m1'] = np.zeros(len(usable))
+new_cat['m2'] = np.zeros(len(usable))
+new_cat['s1'] = np.zeros(len(usable))
+new_cat['s2'] = np.zeros(len(usable))
+for name in usable.keys():
+    new_cat['z'][name] = usable[name][0]
+    new_cat['m1'][name] = usable[name][1]
+    new_cat['m2'][name] = usable[name][2]
+    new_cat['s1'][name] = usable[name][3]
+    new_cat['s2'][name] = usable[name][4]
+
+f = open('new_format/%s' %file_name,'wb')
+pickle.dump(new_cat,f)
 f.close()
