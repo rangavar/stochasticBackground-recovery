@@ -158,7 +158,7 @@ def h(f,NBinned,FCUT):
         for m2log in M2logBins[count:nM2]:
             m2 = 10.**(m2log+M2BinSize/2.)
             sum = sum + integralM(m1,m2,f,NBinned,FCUT)*mChirp(m1,m2)**(5./3.)
-            count = count + 1
+        count = count + 1
     y = ( 4.*G**(5./3.)/(3.*np.pi**(1./3.)*c**2.) )**(0.5)*np.sqrt(sum)*f**(-2./3.) * (3.17e-8)**(2./3.)
     return f,y*2
 
